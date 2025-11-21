@@ -1,0 +1,76 @@
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, Arial, sans-serif; background:#0b1111; color:#e7f3f3; }
+.topbar { position:sticky; top:0; display:flex; gap:.5rem; align-items:center; justify-content:space-between; padding:.75rem 1rem; background:#021010; border-bottom:1px solid #10383b; z-index:10; }
+.title { font-weight:700; letter-spacing:.5px; }
+.container { padding: .3rem; max-width: 1100px; margin: 0 auto; }
+.controls { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem; }
+input, select, textarea { width:100%; padding:.6rem .7rem; border-radius:.6rem; border:1px solid #20484b; background:#061415; color:#e7f3f3; }
+label { display:flex; flex-direction:column; gap:.25rem; font-size:.9rem; }
+.btn { border:1px solid #1b3a3c; background:#0f2628; padding:.55rem .8rem; border-radius:.7rem; color:#e7f3f3; cursor:pointer; }
+.btn.primary { background:#1b6e73; border-color:#1b6e73; }
+.btn.danger { background:#7b1e2a; border-color:#7b1e2a; }
+.btn:active { transform: translateY(1px); }
+.card { background:#071a1c; border:1px solid #0d2e31; border-radius:1rem; padding:.3rem; margin-bottom:.4rem; }
+.hidden { display:none !important; }
+.list { display:grid;  }
+.list-item { display:flex; justify-content:space-between; gap:.6em; padding:.6rem .75rem; background:#0a1e21; border:1px solid #10383b; border-radius:.8rem; }
+.grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:.6rem; }
+.meta { margin-bottom:.5rem; }
+.stops .stop-row { display:grid; grid-template-columns: 70px 1fr 1fr; gap:.5rem; align-items:center; margin:.25rem 0; }
+.legend-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap:.5rem; margin-top:.5rem; }
+.tag { padding:.5rem .6rem; border-radius:1rem; border:1px dashed #2a4b4e; text-align:center; font-size:.9rem; }
+.pallet-grid { display:grid; grid-template-columns: repeat(2, minmax(30px,1fr)); gap: 25px; background:#041011; padding:.5rem; border-radius:.6rem; border:1px solid #0d2e31; }
+.pallet { position:relative; aspect-ratio: 6 / 1; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:black; background:#0b2225; cursor:pointer; }
+.pallet .pos { position:absolute; height:1px;top:3px; left:4px; font-size:.65rem; opacity:0.0; }
+.pallet .store { position:sticky; left:+10; font-size:1.4rem; font-weight:700; margin-left:10%;  }
+.pallet .type { margin-right: 5%; font-size:1.2rem; font-weight:700; justify-content: center;}
+.row-label { grid-column: 1 / -1; margin:.2rem 0; opacity:.0;  }
+.bulk { position:absolute; right:-20; bottom:0; font-size:.5rem; padding:.01rem .01rem; border-bottom-left-radius:.4rem; border:1px solid #2b5457; }
+.type-Frozen { outline:2px solid #3aa3a8; background-color: #3aa3a8; }
+.type-Chiller { outline:2px solid #9fc27a; background-color: #9fc27a; }
+.type-Ambient { outline:2px solid #c2a27a; background-color: #c2a27a;  }
+.type-Eggs { outline:2px solid #c29a9a; background-color: #c29a9a; }
+.type-Bread { outline:2px solid #c2c07a; background-color: #c2c07a; }
+.type-DP { outline:2px solid #a0a0c2; background-color: #a0a0c2 ;}
+.type-Flower { outline:2px solid #c29fc2;background-color: #c29fc2;  }
+.type-Equip { outline:2px solid #8899a8; background-color:#8899a8;  }
+.bulkhead-help { font-size:.85rem; opacity:.9; margin-bottom:.4rem; }
+.totals-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap:.2rem; }
+.totals-grid .total { font: .35rem; font-weight:500; }
+.actions.sticky { position: sticky; bottom: 0; display:flex; gap:.5rem; padding-top:.5rem; background: linear-gradient(180deg, transparent, #0b1111 20%); }
+.modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.55); }
+.modal.hidden { display:none; }
+.modal-body { width:min(700px, 95vw); background:#071a1c; border:1px solid #0d2e31; padding:.2rem; border-radius:.5rem; }
+.modal-actions { display:flex; gap:.5rem; justify-content:flex-end; margin-top:.5rem; }
+@media (max-width: 600px) {
+  .pallet-grid { gap:.9rem; }
+  .pallet .type { font-size:.85rem; }
+  .pallet .store { font-size: .85rem }
+  .totals-grid { font-size:.6rem; font-weight:300; }
+}
+
+/* Print: force single-page PDF where possible */
+@page {
+  
+  height:23in;
+  width: 8in;
+  margin: 1mm;
+}
+
+@media print {
+  /* make background light for PDF */
+  html, body { background: #fff !important; color: #000 !important; }
+
+  /* hide interactive UI and controls not needed on paper */
+  .topbar, .stops, .metrics, .controls, .btn, .yn, .check_card, .actions.sticky { display: none !important; }
+
+  /* avoid breaking cards across pages */
+  
+
+  /* make everything use normal print-friendly colors */
+  input, select, textarea { background: transparent !important; color: #000 !important; border-color: #999 !important; }
+
+  /* ensure body doesn't accidentally create extra pages from margins */
+  body { margin: 0 !important; padding: 0 !important; }
+}
+

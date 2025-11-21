@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Load Map</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">Load Map</div>
+    <button id="newMapBtn" class="btn primary">New</button>
+  </header>
+
+  <main class="container">
+    <section class="controls">
+      <input id="search" placeholder="Search run / trailer..." />
+      <button id="searchBtn" class="btn">Search</button>
+      <button id="printBtn" class="btn">Print / Save PDF</button>
+    </section>
+
+    <section id="listView" class="card">
+      <h3>Recent Load Maps</h3>
+      <div id="mapsList" class="list"></div>
+    </section>
+
+    <section id="editor" class="card hidden">
+      <div class="grid meta">
+        <label>Title<input id="title"></label>
+        <label>Run #<input id="run_number"></label>
+        <label>Trailer #<input id="trailer_number"></label>
+        <label>Door #<input id="door"></label>
+        <label>Fuel Level<input id="fuel_level"></label>
+        <label>Loaded Temp<input id="loaded_temp" placeholder="-10 / 33 / etc"></label>
+        <label>Loader<input id="loader_name"></label>
+        <label>Driver (Carrier Input)<input id="driver_name"></label>
+        <label>WOL # oLPNs<input id="wol_olpn_count" type="number" min="0"></label>
+        <label>Date<input id="date_field" type="date"></label>
+      </div>
+
+
+
+
+      <div class="pallets card">
+        <h4>Trailer Map</h4>
+        <div class="bulkhead-help">Tap a pallet to edit. Toggle "Bulkhead" to mark a divider at that position.</div>
+        <div id="palletGrid" class="pallet-grid"></div>
+      </div>
+
+      <div class="metrics grid">
+        <label>PLBs Loaded<input id="plbs_loaded" type="number" min="0" value="0"></label>
+        <label>PLBs Created<input id="plbs_created" type="number" min="0" value="0"></label>
+        <label>DPR Rebuilds<input id="dpr_rebuilds" type="number" min="0" value="0"></label>
+        <label>DPR Rewraps<input id="dpr_rewraps" type="number" min="0" value="0"></label>
+        <label>DPR Consolidations<input id="dpr_consolidations" type="number" min="0" value="0"></label>
+      </div>
+
+      <div class="check card">
+        <h4>Sanitary Transport Requirements</h4>
+        <div class="yn">
+          <label>1. Trailer temp set & cooling correctly?
+            <select id="san_q1"><option value="">--</option><option>Yes</option><option>No</option></select>
+          </label>
+          <label>2. Trailer condition OK?
+            <select id="san_q2"><option value="">--</option><option>Yes</option><option>No</option></select>
+          </label>
+          <label>3. Pallets stable & items secured?
+            <select id="san_q3"><option value="">--</option><option>Yes</option><option>No</option></select>
+          </label>
+          <label>4. Bulkheads in place & airflow OK?
+            <select id="san_q4"><option value="">--</option><option>Yes</option><option>No</option></select>
+          </label>
+        </div>
+      </div>
+
+      <div class="notes grid">
+        <label>Loader Notes<textarea id="loader_notes" rows="3"></textarea></label>
+        <label>Driver Notes<textarea id="driver_notes" rows="3"></textarea></label>
+      </div>
+
+      <div class="totals card">
+        <h4>Total Truck Pallet Count Summary</h4>
+        <div class="totals-grid">
+          <div>Frozen: <span id="t_frozen">0</span></div>
+          <div>Chiller: <span id="t_chiller">0</span></div>
+          <div>Ambient: <span id="t_ambient">0</span></div>
+          <div>Eggs: <span id="t_eggs">0</span></div>
+          <div>Bread: <span id="t_bread">0</span></div>
+          <div>Dry Produce: <span id="t_dp">0</span></div>
+          <div>Flower: <span id="t_flower">0</span></div>
+          <div>Equipment: <span id="t_equip">0</span></div>
+          <div class="total">Total: <span id="t_total">0</span></div>
+        </div>
+      </div>
+
+      <div class="actions sticky">
+        <button id="saveBtn" class="btn primary">Save</button>
+        <button id="deleteBtn" class="btn danger">Delete</button>
+        <button id="cancelBtn" class="btn">Close</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="palletModal" class="modal hidden">
+    <div class="modal-body">
+      <h3>Edit Pallet <span id="modalPos"></span></h3>
+      <div class="grid">
+        <label>Store #<input id="p_store"></label>
+        <label>Type
+          <select id="p_type">
+            <option value="Frozen">Frozen</option>
+            <option value="Chiller">Chiller</option>
+            <option value="Ambient">Ambient</option>
+            <option value="Eggs">Eggs</option>
+            <option value="Bread">Bread</option>
+            <option value="DP">Dry Produce</option>
+            <option value="Flower">Flower</option>
+            <option value="Equip">Equipment</option>
+          </select>
+        </label>
+        <label>Zone Letter
+          <select id="p_zone">
+            <option value="">--</option>
+            <option value="F">F</option>
+            <option value="C">C</option>
+            <option value="M">M</option>
+            <option value="E">E</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="DP">DP</option>
+            <option value="FL">FL</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="p_bulk"/> Bulkhead after this pallet</label>
+      </div>
+      <div class="modal-actions">
+        <button id="p_save" class="btn primary">Save</button>
+        <button id="p_clear" class="btn danger">Clear</button>
+        <button id="p_close" class="btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>

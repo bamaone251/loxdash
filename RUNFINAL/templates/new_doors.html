@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>New Doors</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    input { padding: 6px; margin-right: 6px; }
+    button { padding: 6px 10px; }
+    ul { list-style: none; padding: 0; margin-top: 12px; max-width: 600px; }
+    li { padding: 8px 10px; border: 1px solid #ddd; margin-bottom: 6px; cursor: pointer; display:flex; justify-content:space-between; align-items:center; }
+    li:hover { background:#f6f6f6; }
+    .meta { color: #666; font-size: 0.9em; }
+    .remove-hint { color:#c00; font-size:0.85em; margin-left:10px; }
+  </style>
+</head>
+<body>
+  <h2>New Doors</h2>
+
+  <div>
+    <input id="door_number" placeholder="Door #" />
+    <input id="trailer_number" placeholder="Trailer #" />
+    <button id="addBtn">Add</button>
+  </div>
+
+  <ul id="list"></ul>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const listEl = document.getElementById('list');
+    const doorInput = document.getElementById('door_number');
+    const trailerInput = document.getElementById('trailer_number');
+    const addBtn = document.getElementById('addBtn');
+
+    // Helper to create an li element for an entry
+    function createListItem(entry) {
+      const li = document.createElement('li');
+      li.dataset.id = entry.id;
+      li.innerHTML = '<span><strong>' + escapeHtml(entry.door_number) + '</strong> <span class="meta">/ ' + escapeHtml(entry.trailer_number) + '</span></span>' +
+                     '<span class="remove-hint">click to delete</span>';
+      li.addEventListener('click', () => {
+        if (!confirm('Delete this entry?')) return;
+        const id = li.dataset.id;
+        fetch('/api/new_doors/' + encodeURIComponent(id), { method: 'DELETE' })
+          .then(res => {
+            if (!res.ok) throw new Error('delete failed');
+            // remove immediately
+            li.remove();
+          })
+          .catch(err => {
+            console.error(err);
+            alert('Failed to delete');
+          });
+      });
+      return li;
+    }
+
+    // Escape basic HTML
+    function escapeHtml(s) {
+      if (!s) return '';
+      return s.replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'':'&#39;'})[m]; });
+    }
+
+    // Load existing entries
+    function loadEntries() {
+      fetch('/api/new_doors')
+        .then(r => r.json())
+        .then(data => {
+          listEl.innerHTML = '';
+          data.forEach(e => listEl.appendChild(createListItem(e)));
+        })
+        .catch(err => console.error('load error', err));
+    }
+
+    addBtn.addEventListener('click', () => {
+      const door_number = doorInput.value.trim();
+      const trailer_number = trailerInput.value.trim();
+      if (!door_number || !trailer_number) {
+        alert('Both Door # and Trailer # required');
+        return;
+      }
+      addBtn.disabled = true;
+      fetch('/api/new_doors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ door_number, trailer_number })
+      })
+      .then(r => r.json().then(j => ({ ok: r.ok, data: j })))
+      .then(({ ok, data }) => {
+        addBtn.disabled = false;
+        if (!ok) {
+          alert(data.error || 'Failed to add');
+          return;
+        }
+        // add immediately to list
+        listEl.appendChild(createListItem(data));
+        doorInput.value = '';
+        trailerInput.value = '';
+        doorInput.focus();
+      })
+      .catch(err => {
+        addBtn.disabled = false;
+        console.error(err);
+        alert('Failed to add');
+      });
+    });
+
+    // Socket.IO real-time updates (other clients)
+    const socket = io();
+    socket.on('new_door_added', (payload) => {
+      // avoid duplicate if it's already present
+      if (!document.querySelector('li[data-id="' + payload.id + '"]')) {
+        listEl.appendChild(createListItem(payload));
+      }
+    });
+    socket.on('new_door_removed', (payload) => {
+      const el = document.querySelector('li[data-id="' + payload.id + '"]');
+      if (el) el.remove();
+    });
+
+    // initial load
+    loadEntries();
+  </script>
+</body>
+</html>

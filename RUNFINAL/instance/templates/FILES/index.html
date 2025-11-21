@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOX LOAD DASHBOARD</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .header-section {
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .action-btn {
+            padding: 6px 8px;
+            border: none;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 2  00;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-clear {
+            background: #e53e3e;
+            color: white;
+        }
+        
+        .btn-clear:hover {
+            background: #c53030;
+        }
+        
+        .btn-export {
+            background: #38a169;
+            color: white;
+        }
+        
+        .btn-export:hover {
+            background: #2f855a;
+        }
+        
+        #status-counters {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            padding: 25px;
+            margin-bottom: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .counters-wrapper {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .counter-badge {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 75px;
+            text-align: center;
+        }
+        
+        .counter-badge strong {
+            display: block;
+            font-size: 10px;
+            color: #a0aec0;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .counter-badge span {
+            display: block;
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .counter-badge.empty span { color: #48bb78; }
+        .counter-badge.loading span { color: #ecc94b; }
+        .counter-badge.loaded span { color: #f56565; }
+        .counter-badge.backhaul span { color: #63b3ed; }
+        
+        .door-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 2fr));
+            gap: 15px;
+        }
+        
+        .door-card {
+            background: #2d3748;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+        }
+        
+        .door-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .edit-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 10;
+            backdrop-filter: blur(5px);
+        }
+        
+        .edit-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+        
+        .door-card.Empty .edit-btn,
+        .door-card.Loading .edit-btn,
+        .door-card.Backhaul .edit-btn {
+            color: #000;
+        }
+        
+        .door-card.Loaded .edit-btn {
+            color: #fff;
+        }
+        
+        .door-card.Empty {
+            background: #48bb78;
+            color: #000000;
+        }
+        
+        .door-card.Loading {
+            background: #ecc94b;
+            color: #000;
+        }
+        
+        .door-card.Loaded {
+            background: #f56565;
+            color: #0a0a0a;
+            font-weight: 700;
+            font-size: 19px;
+        }
+        
+        .door-card.Backhaul {
+            background: #63b3ed;
+            color: #000;
+
+        }
+        
+        .door-card h3 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        .door-card .info {
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1.15;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            bottom: -10;
+            
+            width: 100%;
+            height: 90%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background: #2d3748;
+            margin: 5% auto;
+            padding: 10px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #4a5568;
+        }
+        
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #a0aec0;
+            transition: color 0.3s;
+        }
+        
+        .close:hover {
+            color: #fff;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #a0aec0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            background: #1a202c;
+            color: #fff;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #63b3ed;
+        }
+        
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .btn {
+            background: #4299e1;
+            color: #fff;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background 0.3s;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            background: #3182ce;
+        }
+        
+        /* Confirmation Dialog */
+        .confirm-dialog {
+            background: #2d3748;
+            padding: 25px;
+            border-radius: 12px;
+            max-width: 400px;
+            margin: 20% auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        .confirm-dialog h3 {
+            margin-bottom: 15px;
+            color: #fff;
+        }
+        
+        .confirm-dialog p {
+            margin-bottom: 20px;
+            color: #a0aec0;
+            line-height: 1.6;
+        }
+        
+        .confirm-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .confirm-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .confirm-btn.cancel {
+            background: #4a5568;
+            color: #fff;
+        }
+        
+        .confirm-btn.cancel:hover {
+            background: #2d3748;
+        }
+        
+        .confirm-btn.confirm {
+            background: #e53e3e;
+            color: #fff;
+        }
+        
+        .confirm-btn.confirm:hover {
+            background: #c53030;
+        }
+
+        /* Search Bar Styles */
+        #search-section {
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .search-container {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #4a5568;
+            border-radius: 8px;
+            background: #2d3748;
+            color: #fff;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #63b3ed;
+            box-shadow: 0 0 10px rgba(99, 179, 237, 0.3);
+        }
+
+        .search-input::placeholder {
+            color: #718096;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-section">
+        <h1>LOX LOAD DASH</h1>
+        
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="action-btn btn-clear" onclick="confirmClearAll()">
+                <span>🗑️</span> Clear All Data
+            </button>
+            <button class="action-btn btn-export" onclick="exportToPDF()">
+                <span>📄</span> Export to PDF
+            </button>
+        </div>
+        
+        <!-- Status Counters -->
+        <div id="status-counters">
+            <div class="counters-wrapper">
+                <div class="counter-badge empty">
+                    <strong>Ready</strong>
+                    <span id="count-empty">0</span>
+                </div>
+                <div class="counter-badge loading">
+                    <strong>Loading</strong>
+                    <span id="count-loading">0</span>
+                </div>
+                <div class="counter-badge loaded">
+                    <strong>Loaded</strong>
+                    <span id="count-loaded">0</span>
+                </div>
+                
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div id="search-section">
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="search-input" 
+                    placeholder="Search by Stores, Trailer, or Loader..."
+                >
+            </div>
+        </div>
+    </div>
+    
+    <!-- Door Grid -->
+    <div class="door-grid" id="door-grid">
+        {% for door in doors %}
+        <div class="door-card {{ door.status }}" data-door-id="{{ door.id }}" data-status="{{ door.status }}">
+            <h3>{{ door.id }}</h3>
+            <div class="info">
+                <div><strong>Status:</strong> {{ door.status }}</div>
+                {% if door.detail %}
+                <div><strong>Door #:</strong> {{ door.detail.run_number or '' }}</div>
+                <div><strong>Stores:</strong> {{ door.detail.stores or '' }}</div>
+                <div><strong>Trailer:</strong> {{ door.detail.trailer or '' }}</div>
+                <div><strong>Temp:</strong> {{ door.detail.trailer_temp or '' }}</div>
+                <div><strong>Loader:</strong> {{ door.detail.loader or '' }}</div>
+                <div><strong>Notes:</strong> {{ door.detail.notes or '' }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Modal for editing details -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Edit Door Details</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="detailForm">
+                <input type="hidden" id="current-door-id">
+                
+                <div class="form-group">
+                    <label for="run_number">Door Number:</label>
+                    <input type="text" id="run_number" name="run_number">
+                </div>
+                
+                  <div class="form-group">
+                    <label for="stores">Stores:</label>
+                    <input type="text" id="stores" name="stores">
+                </div>
+                
+                
+                <div class="form-group">
+                    <label for="loader">Loader:</label>
+                    <input type="text" id="loader" name="loader">
+                </div>
+                
+                <div class="form-group">
+                    <label for="trailer">Trailer:</label>
+                    <input type="text" id="trailer" name="trailer">
+                </div>
+                
+                <div class="form-group">
+                    <label for="temp">Temp:</label>
+                    <input type="text" id="trailer_temp1" name="temp">
+                </div>
+                
+                
+              
+                <div class="form-group">
+                    <label for="notes">Notes:</label>
+                    <textarea id="notes" name="notes"></textarea>
+                </div>
+                
+                <button type="submit" class="btn">Save Details</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Confirmation Dialog -->
+    <div id="confirmModal" class="modal">
+        <div class="confirm-dialog">
+            <h3>⚠️ Confirm Clear All Data</h3>
+            <p>This will permanently delete all door details and reset all statuses to Empty. This action cannot be undone.</p>
+            <div class="confirm-buttons">
+                <button class="confirm-btn cancel" onclick="closeConfirmDialog()">Cancel</button>
+                <button class="confirm-btn confirm" onclick="clearAllData()">Clear All Data</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const socket = io();
+        const modal = document.getElementById('detailModal');
+        const confirmModal = document.getElementById('confirmModal');
+        const closeBtn = document.querySelector('.close');
+        const form = document.getElementById('detailForm');
+        let currentDoorId = null;
+        let isFormOpen = false;
+        
+        const statusCycle = ['Empty', 'Loading', 'Loaded', 'Backhaul'];
+        
+        // Update status counters
+        function updateStatusCounters() {
+            fetch('/api/status_counts')
+                .then(response => response.json())
+                .then(counts => {
+                    document.getElementById('count-empty').textContent = counts['Empty'] || 0;
+                    document.getElementById('count-loading').textContent = counts['Loading'] || 0;
+                    document.getElementById('count-loaded').textContent = counts['Loaded'] || 0;
+                    document.getElementById('count-backhaul').textContent = counts['Backhaul'] || 0;
+                })
+                .catch(error => console.error('Error fetching status counts:', error));
+        }
+
+            // Periodic refresh (every 30 seconds) - only if form is not open
+        setInterval(function() {
+            if (!isFormOpen) {
+                updateStatusCounters();
+            }
+        }, 10000);
+        
+        // Load door details
+        function loadDoorDetails(doorId) {
+            fetch(`/api/door/${doorId}/details`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('run_number').value = data.run_number || '';
+                    document.getElementById('loader').value = data.loader || '';
+                    document.getElementById('trailer').value = data.trailer || '';
+                    document.getElementById('stores').value = data.stores || '';
+                    document.getElementById('notes').value = data.notes || '';
+                })
+                .catch(error => console.error('Error loading details:', error));
+        }
+        
+        // Save door details
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const doorId = document.getElementById('current-door-id').value;
+            const data = {
+                run_number: document.getElementById('run_number').value,
+                stores: document.getElementById('stores').value,
+                loader: document.getElementById('loader').value,
+                trailer: document.getElementById('trailer').value,
+                notes: document.getElementById('notes').value
+            };
+            
+            fetch(`/api/door/${doorId}/details`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(() => {
+                modal.style.display = 'none';
+                isFormOpen = false;
+            })
+            .catch(error => console.error('Error saving details:', error));
+        });
+        
+        // Handle door card clicks with delay to detect double-click
+        let clickTimer = null;
+        let preventClick = false;
+        
+        document.getElementById('door-grid').addEventListener('click', function(e) {
+            const card = e.target.closest('.door-card');
+            if (!card) return;
+            
+            // Prevent single click action if double-click was detected
+            if (preventClick) {
+                preventClick = false;
+                return;
+            }
+            
+            const doorId = card.dataset.doorId;
+            const currentStatus = card.dataset.status;
+            
+            // Clear any existing timer
+            clearTimeout(clickTimer);
+            
+            // Set a timer to handle single click
+            clickTimer = setTimeout(function() {
+                // Single click - cycle status
+                const currentIndex = statusCycle.indexOf(currentStatus);
+                const nextStatus = statusCycle[(currentIndex + 1) % statusCycle.length];
+                
+                socket.emit('update_status', {
+                    door_id: parseInt(doorId),
+                    status: nextStatus
+                });
+            }, 250); // 250ms delay to detect double-click
+        });
+        
+        // Handle double click to open modal
+        document.getElementById('door-grid').addEventListener('dblclick', function(e) {
+            const card = e.target.closest('.door-card');
+            if (!card) return;
+            
+            // Cancel the single-click timer and prevent status change
+            clearTimeout(clickTimer);
+            preventClick = true;
+            
+            const doorId = card.dataset.doorId;
+            currentDoorId = doorId;
+            
+            document.getElementById('current-door-id').value = doorId;
+            document.getElementById('modal-title').textContent = `Edit ${card.querySelector('h3').textContent}`;
+            
+            loadDoorDetails(doorId);
+            modal.style.display = 'block';
+            isFormOpen = true;
+        });
+        
+        // Close modal
+        closeBtn.addEventListener('click', function() {
+            modal.style.display = 'none';
+            isFormOpen = false;
+        });
+        
+        window.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                isFormOpen = false;
+            }
+        });
+        
+        // Confirm clear all data
+        function confirmClearAll() {
+            confirmModal.style.display = 'block';
+        }
+        
+        function closeConfirmDialog() {
+            confirmModal.style.display = 'none';
+        }
+        
+        // Clear all data
+        function clearAllData() {
+            fetch('/api/clear_all_data', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Data cleared:', data);
+                closeConfirmDialog();
+                // Page will update via socket events
+            })
+            .catch(error => console.error('Error clearing data:', error));
+        }
+        
+        // Export to PDF
+        function exportToPDF() {
+            window.location.href = '/api/export_pdf';
+        }
+        
+        // Socket listeners
+        socket.on('status_updated', function(data) {
+            const card = document.querySelector(`[data-door-id="${data.door_id}"]`);
+            if (card) {
+                // Update status
+                statusCycle.forEach(status => card.classList.remove(status));
+                card.classList.add(data.status);
+                card.dataset.status = data.status;
+                
+                // Update displayed info
+                const infoDiv = card.querySelector('.info');
+                infoDiv.innerHTML = `
+                    <div><strong>Status:</strong> ${data.status}</div>
+                    <div><strong>Door #:</strong> ${data.run_number || ''}</div>
+                    <div><strong>Trailer:</strong> ${data.trailer || ''}</div>
+                    <div><strong>Loader:</strong> ${data.loader || ''}</div>
+                    <div><strong>Stores:</strong> ${data.stores || ''}</div>
+                    <div><strong>Notes:</strong> ${data.notes || ''}</div>
+                `;
+            }
+            updateStatusCounters();
+        });
+        
+        socket.on('door_details', function(data) {
+            const card = document.querySelector(`[data-door-id="${data.door_id}"]`);
+            if (card && !isFormOpen) {
+                const infoDiv = card.querySelector('.info');
+                const statusDiv = infoDiv.querySelector('div:first-child');
+                infoDiv.innerHTML = `
+                    ${statusDiv.outerHTML}
+                    <div><strong>Door #:</strong> ${data.run_number || ''}</div>
+                    <div><strong>Trailer:</strong> ${data.trailer || ''}</div>
+                    <div><strong>Loader:</strong> ${data.loader || ''}</div>
+                    <div><strong>Stores:</strong> ${data.stores || ''}</div>
+                    <div><strong>Notes:</strong> ${data.notes || ''}</div>
+                `;
+            }
+        });
+        
+        // Initial counter update
+        updateStatusCounters();
+        
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const doorGrid = document.getElementById('door-grid');
+        
+        function filterDoors(searchTerm) {
+            const cards = doorGrid.querySelectorAll('.door-card');
+            const lowerSearchTerm = searchTerm.toLowerCase();
+            
+            cards.forEach(card => {
+                const info = card.querySelector('.info').textContent;
+                const name = card.querySelector('h3').textContent;
+                const searchableText = (name + ' ' + info).toLowerCase();
+                
+                // Search in Stores, Trailer, and Loader fields
+                if (searchableText.includes(lowerSearchTerm)) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+        
+        searchInput.addEventListener('input', function(e) {
+            filterDoors(e.target.value);
+        });
+        
+    
+    </script>
+</body>
+</html>

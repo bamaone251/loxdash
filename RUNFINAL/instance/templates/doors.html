@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Door Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 20px;
+        }
+        a { color: #63b3ed; }
+        h1 { margin-bottom: 10px; }
+        .door-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+        .card {
+            background: #2d3748;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 13px;
+        }
+        .card h3 { margin-bottom: 6px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h1>Door Details</h1>
+    <p><a href="/">⬅ Back to Dashboard</a></p>
+    <div class="door-grid">
+        {% for door in doors %}
+        <div class="card">
+            <h3>Run # {{ door.id }} — {{ door.status }}</h3>
+            {% if door.detail %}
+            <div><strong>Door #:</strong> {{ door.detail.run_number or '' }}</div>
+            <div><strong>Trailer:</strong> {{ door.detail.trailer or '' }}</div>
+            <div><strong>Stores:</strong> {{ door.detail.stores or '' }}</div>
+            <div><strong>Temp:</strong> {{ door.detail.trailer_temp or '' }}</div>
+            <div><strong>Loader:</strong> {{ door.detail.loader or '' }}</div>
+            <div><strong>Notes:</strong> {{ door.detail.notes or '' }}</div>
+            {% else %}
+            <div>No details yet.</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
+

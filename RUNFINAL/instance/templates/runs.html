@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Warehouse Run Monitor</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+  <div class="top-nav" style="display:flex;gap:8px;margin-bottom:12px;">
+    <a href="/" class="nav-btn">Doors</a>
+    <a href="/runs" class="nav-btn">Runs</a>
+  </div>
+  <h1>Warehouse Run Status</h1>
+  <div class="doors-container">
+    {% for door in doors %}
+    <div class="door-wrapper">
+      <button class="needs-work good" data-door-id="{{ door.id }}" aria-pressed="false">GOOD</button>
+      <div class="door-card {% if door.status %}status-{{ door.status|lower }}{% else %}status-backhaul{% endif %}" id="door-{{ door.id }}" data-door-id="{{ door.id }}">
+        <h2>{{ door.name }}</h2>
+        <p>Status: <span class="status">{{ door.status or 'Backhaul' }}</span></p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <script>
+    const socket = io();
+
+    function applyStatusClass(cardElement, statusText) {
+      if (!cardElement) return;
+      const normalized = (statusText || 'unknown').toLowerCase();
+      const knownStatuses = ['empty', 'loading', 'loaded', 'backhaul'];
+      cardElement.classList.forEach(cls => { if (cls.startsWith('status-')) cardElement.classList.remove(cls); });
+      const statusClass = knownStatuses.includes(normalized) ? `status-${normalized}` : 'status-unknown';
+      cardElement.classList.add(statusClass);
+    }
+
+    socket.on('status_updated', (data) => {
+      const card = document.getElementById(`door-${data.door_id}`);
+      const statusSpan = card?.querySelector('.status');
+      if (statusSpan) statusSpan.textContent = data.status;
+      if (card) applyStatusClass(card, data.status);
+    });
+
+    // init on load: apply classes and attach click handlers to cards
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.door-card').forEach(card => {
+        const statusText = card.querySelector('.status')?.textContent || '';
+        applyStatusClass(card, statusText.trim());
+        // make cards keyboard-focusable and clickable to cycle status
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        card.addEventListener('click', () => {
+          const doorId = card.getAttribute('data-door-id');
+          const current = card.querySelector('.status')?.textContent || '';
+          const newStatus = cycleStatus(current);
+          const statusSpan = card.querySelector('.status');
+          if (statusSpan) statusSpan.textContent = newStatus;
+          applyStatusClass(card, newStatus);
+          socket.emit('update_status', { door_id: Number(doorId), status: newStatus });
+        });
+        card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); } });
+      });
+
+      // attach Needs Work button handlers
+      document.querySelectorAll('.needs-work').forEach(btn => {
+        btn.tabIndex = 0;
+        btn.addEventListener('click', () => toggleNeedsWork(btn));
+        btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleNeedsWork(btn); } });
+      });
+
+      // attach dblclick and touch listeners to the small Needs Work button
+      document.querySelectorAll('.needs-work').forEach(btn => {
+        btn.addEventListener('dblclick', (e) => { const id = btn.getAttribute('data-door-id'); openModalForDoor(id); });
+        btn.addEventListener('touchend', (e) => { handlePotentialDoubleTap(btn, e); });
+      });
+    });
+
+    function toggleNeedsWork(button) {
+      const doorId = button.getAttribute('data-door-id');
+      const isGood = button.classList.contains('good');
+      if (isGood) {
+        button.classList.remove('good');
+        button.classList.add('maint');
+        button.textContent = 'MAINT';
+        button.setAttribute('aria-pressed', 'true');
+      } else {
+        button.classList.remove('maint');
+        button.classList.add('good');
+        button.textContent = 'INFO';
+        button.setAttribute('aria-pressed', 'false');
+      }
+      if (typeof socket !== 'undefined') {
+        socket.emit('needs_work_toggled', { door_id: Number(doorId), needs_work: !isGood });
+      }
+    }
+
+
+    function cycleStatus(currentStatus) {
+      const statuses = ['Empty', 'Loading', 'Loaded', 'Backhaul'];
+      const normalized = (currentStatus || '').toLowerCase();
+      const idx = statuses.findIndex(s => s.toLowerCase() === normalized);
+      return statuses[(idx + 1) % statuses.length];
+    }
+  </script>
+  <!-- Modal for entering Run #, Loader, Notes -->
+  <div id="detail-modal-overlay" class="modal-overlay" style="display:none;">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
+      <h3 id="detailModalTitle">Run Details</h3>
+      <input type="hidden" id="modal-door-id">
+      <label>Run #
+        <input type="text" id="modal-run" placeholder="Run #">
+      </label>
+      <label>Loader
+        <input type="text" id="modal-loader" placeholder="Loader name">
+      </label>
+      <label>Notes
+        <textarea id="modal-notes" placeholder="Notes..."></textarea>
+      </label>
+      <div class="modal-actions">
+        <button class="close-btn" id="modal-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // modal helpers
+    const modalOverlay = document.getElementById('detail-modal-overlay');
+    const modalDoorId = document.getElementById('modal-door-id');
+    const modalRun = document.getElementById('modal-run');
+    const modalLoader = document.getElementById('modal-loader');
+    const modalNotes = document.getElementById('modal-notes');
+    const modalCloseBtn = document.getElementById('modal-close');
+
+    function openModalForDoor(doorId) {
+      modalDoorId.value = doorId;
+      fetch(`/api/door/${doorId}/details`).then(r => r.json()).then(data => {
+        modalRun.value = data.run_number || '';
+        modalLoader.value = data.loader || '';
+        modalNotes.value = data.notes || '';
+      }).catch(() => {
+        modalRun.value = '';
+        modalLoader.value = '';
+        modalNotes.value = '';
+      });
+      modalOverlay.style.display = 'flex';
+      modalRun.focus();
+    }
+
+    function closeModal() {
+      modalOverlay.style.display = 'none';
+    }
+
+    modalCloseBtn.addEventListener('click', () => {
+      const doorId = modalDoorId.value;
+      fetch(`/api/door/${doorId}/details`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_number: modalRun.value, loader: modalLoader.value, notes: modalNotes.value })
+      }).finally(() => closeModal());
+    });
+    modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+    // double-tap detection for touch devices
+    const lastTap = new Map();
+    function handlePotentialDoubleTap(card, ev) {
+      const id = card.getAttribute('data-door-id');
+      const now = Date.now();
+      const prev = lastTap.get(id) || 0;
+      if (now - prev < 350) {
+        openModalForDoor(id);
+        lastTap.set(id, 0);
+      } else {
+        lastTap.set(id, now);
+      }
+    }
+
+    // attach dblclick and touch listeners to the small Needs Work button
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.needs-work').forEach(btn => {
+        btn.addEventListener('dblclick', (e) => { const id = btn.getAttribute('data-door-id'); openModalForDoor(id); });
+        btn.addEventListener('touchend', (e) => { handlePotentialDoubleTap(btn, e); });
+      });
+    });
+  </script>
+</body>
+</html>
